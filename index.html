@@ -1,0 +1,56 @@
+<!-- You might want to try something fancier: -->
+<!-- html/nunjucks docs: https://mozilla.github.io/nunjucks/ -->
+<!-- pug: https://pugjs.org/ -->
+<!-- haml: http://haml.info/ -->
+<!-- hbs(handlebars): http://handlebarsjs.com/ -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>URL Shortener Microservice</title>
+    <meta name="description" content="A cool thing made with Glitch">
+    <link id="favicon" rel="icon" href="https://glitch.com/edit/favicon-app.ico" type="image/x-icon">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <header>
+      <h1>
+        URL Shortener Microservice
+      </h1>
+    </header>
+
+    <main>
+      <p class="bold">User stories:</p>
+      <ul>
+        <li>I can pass a URL as a parameter and I will receive a shortened URL in the JSON response.</li>
+        <li>If I pass an invalid URL that doesn't follow the valid http://www.example.com format, the JSON response will contain an error instead.</li>
+        <li>When I visit that shortened URL, it will redirect me to my original link.</li>
+      </ul>
+      <p class="bold">Example creation usage:</p>
+      <h5>https://url-shortener-e.glitch.me/https://www.google.com</h5>
+      
+      <p class="bold">Example creation output</p>
+      <h5>{ "original_url":"http://www.google.com", "short_url":"https://url-shortener-e.glitch.me/2871" }</h5>
+      
+      <p class="bold">Usage:</p>
+      <h5>https://url-shortener-e.glitch.me/2871</h5>
+      
+      <p class="bold">Will redirect to:</p>
+      
+      <h5>https://www.google.com/</h5>
+      
+    </main>
+
+    
+
+    <!-- Your web-app is https, so your scripts need to be too -->
+    <script src="https://code.jquery.com/jquery-2.2.1.min.js"
+            integrity="sha256-gvQgAFzTH6trSrAWoH1iPo9Xc96QxSZ3feW6kem+O00="
+            crossorigin="anonymous"></script>
+    <script src="/client.js"></script>
+
+  </body>
+</html>
