@@ -4,8 +4,12 @@ var app = express();
 var url = require('url');
 var mongodb = require('mongodb');
 var mongodburl = 'mongodb://localhost:27017/urlshortener';
-var output = {'error: ' : "Please make sure your url follows the /new/http://www.example.com format"};
-var shortURLStr = "https://url-shortener-e.glitch.me/t1";
+var output = {'error' : "There was an error during processing"};
+var shortURLStr = "https://www.url-shortener-e.glitch.me/";
+var counter = 0;
+var shortURLStrCtr = "";
+var longURLArr;
+var shortULRArr;
 
 app.use(express.static('public'));
 
@@ -13,21 +17,14 @@ app.get("/", function(request, response){
   response.sendFile(__dirname + '/views/index.html');
 })
 
-//We might have a straight url (which is the short one, to be redirected
-  //If it's in the db: redirect
-  //if not: error msg (we couldn't find this short url in the db; if you want to shorten it, enter it with a /new/)
-//or we might have a new/ which is one to be shortened and saved in the db
-  //Strip it of new/ and check its format (note: should create a validFormat() function?)
-    //If it's valid: shorten, save into db and return both long and short url
-    //If not: return error msg  
 app.use(function(req, res){
   var pathname = url.parse(req.url).pathname;
   //Take the extra slash off
   pathname = pathname.substring(1, pathname.length);
-
   //Convert input to lowercase (to get it ready for the next check)
   pathname = pathname.toLowerCase();
   console.log(pathname);
+
   var firstDot = pathname.indexOf('.');
   //There should be at least one character between www. and the .com
   firstDot +=1;
@@ -57,64 +54,159 @@ app.use(function(req, res){
         pathname = pathname.substring(4, pathname.length);
 //NOTE2: since we are doubling up in code, we should split the checks into a checkURL() method that returns true/false and you need to pass in the pathname
 
-//NOTE3: Still need to add logic to generate a uniqe shortURLStr!!!!!!!
         first11Digits = pathname.substring(0, 11);
         console.log('first11Digits after new: ' + first11Digits);
+
         if (((first11Digits == "http://www.") || (first11Digits == "https://www")) && 
           (pathname.length > 16) && (secondDot > -1)) {
+
+          console.log("checking if it's in database");
+        
+          //Need to check if it's in the database; if it is: return the long-short pair; 
+          collection.find(
+          {'longURL': pathname}).toArray(function(err, documents) {
+            if (err) throw err;
+            console.log("in collection.find; next log will be documents");
+            console.log("documents: " + JSON.stringify(documents));
+            longURLArr = documents;
+            console.log('longURLArr: ' + JSON.stringify(longURLArr)); 
           
-          //Valid format: shorten and save to db
-          console.log('before insert');
-          collection.insert(
-            { 'longURL' : pathname, 'shortURL': shortURLStr}, 
-            function(err, documents) {
-              if (err) throw err;
-              //console.log(JSON.stringify({ longURL : pathname, shortURL: shortURLStr}));
-              console.log('documents at inserting: ' + JSON.stringify(documents));
+
+            if (longURLArr.length > 0) {
+              console.log('found long url');
+              output = {
+              'original url' : longURLArr[0],
+              'short url' : longURLArr[1]
+              };
+              console.log('output after finding longURL: ' + JSON.stringify(output));
             }
-          );
-          console.log('after insert');
-          
-          output = {
-            'original URL: ' : pathname,
-            'short URL' : shortURLStr 
-          };
-          console.log('output: ' + JSON.stringify(output));
+            else {
+              console.log('Long URL is not in the database');
+              //create a unique short url and save it to the database. 
+              //ShortURL generating logic:
+              //Find the biggest (MAX) short url number and add 1 to it
+              if (counter !== 0){
+                  console.log("counter is not zero...");
+                  var maxRecord = collection.find().sort({shortULR:-1}).limit(1).toArray(function(err, documents) {
+                  if (err) throw err
+                  console.log(documents);
+
+                  //Turn counter to str!
+                  counter = parseInt(maxRecord[2]);
+                  counter += 1;
+                  console.log("counter: " + counter);
+                });  
+              }
+              
+              shortURLStrCtr = "" + counter;
+              console.log("shortURLStr: " + shortURLStr);
+              console.log('before insert');
+              console.log("pathname: " + pathname + " shortURLStr: " + shortURLStr);
+              collection.insert(
+                { 'longURL' : pathname, 'shortURL': shortURLStrCtr}, 
+                function(err, documents) {
+                  console.log(err);
+                  if (err) throw err;
+                  //console.log(JSON.stringify({ longURL : pathname, shortURL: shortURLStr}));
+                  console.log('documents at inserting: ' + JSON.stringify(documents));
+                  console.log('after insert');
+                  output = {
+                    'original URL: ' : pathname,
+                    'short URL' : (shortURLStr + shortURLStrCtr)
+                };
+                console.log('output after insert: ' + JSON.stringify(output));
+                console.log("before closing connection");
+                console.log("output: " + JSON.stringify(output));
+                res.send(output);
+                //Close connection
+                db.close();  
+              });
+            }
+            
+          });
+          console.log("finished collection.find(longURL) block");
         }
         //If not valid: return error msg
         else {
+          console.log("/new/ wasn't a valid format url");
           output = {'error: ' : "Please make sure your url follows the /new/http://www.example.com format"};
+          console.log("before closing connection");
+          console.log("output: " + JSON.stringify(output));
+          res.send(output);
+          //Close connection
+          db.close();
         }
       }
       else{
         console.log('short URL');
-        //Supposed to be a short url
-        //If valid format: redirect
-        //if not valid format: return error msg
- 
-        //console.log(first11Digits);
-        //console.log(pathname.length);
+        //Need to strip pathname off https://www.url-shortener-e.glitch.me/
+        shortURLStrCtr = pathname.substring(38, pathname.length);
+        console.log("shortURLStr: " + shortURLStr);
 
-        //Need to make sure the first 11 digits is http://www.; 
-        //also need to make sure the url has the above 11 digits + 1 (for a dot) + something else in between;
         if (((first11Digits == "http://www.") || (first11Digits == "https://www")) && 
-          (pathname.length > 13) && (secondDot > -1) && (secondDot !== firstDot)) {
+          (pathname.length > 13) && (secondDot > -1)) {
           console.log('short url valid format');
-          output = {'original url' : pathname};
-          console.log('output short: ' + JSON.stringify(output));
+          //find shortURL in db; if found: redirect; if not: just give error msg.
+          collection.find(
+          {'shortURL': shortURLStrCtr}).toArray(function(err, documents) {
+            if (err) throw err;
+            console.log("in collection.find shortURL;");
+            console.log("documents: " + JSON.stringify(documents));
+            console.log('documents[0]: ' + JSON.stringify(documents[0]));
+            console.log('documents[0]["longURL"]: ' + documents[0]["longURL"]);
+            console.log("documents.length: next log");
+            console.log(documents.length);
+            //shortULRArr = documents;
+            if (documents.length > 0){
+              //redirect
+              console.log('before redirectig');
+              res.redirect(documents[0]["longURL"]);
+              console.log("before closing connection");
+              //Close connection
+              db.close();  
+            }
+            else{
+              output = {"error" : "This short URL is not in our database"}
+              console.log("before closing connection");
+              console.log("output: " + JSON.stringify(output));
+              res.send(output);
+              //Close connection
+              db.close();  
+            }
+
+            
+        
+          });  
+
+          //output = {'original url' : pathname};
+          //console.log('output short: ' + JSON.stringify(output));
         }
         else{
+          console.log("short URL is not in a valid format");
           output = {'error: ' : "Please make sure your url follows the /http://www.example.com format"};
+          console.log("before closing connection");
+          console.log("output: " + JSON.stringify(output));
+          res.send(output);
+          //Close connection
+          db.close();  
+        
         }
       } 
     }
+//Problem: this will happen before the above code finished running; in other words,
+//it seems to be async and before the lines above finished this will just close db and cause trouble;
+//Need to close in a callback somehow???
+    //console.log("before closing connection");
+    //console.log("output: " + JSON.stringify(output));
+    
+    //res.send(output);
     //Close connection
-    db.close();  
+    //db.close();  
     //console.log('output short3: ' + JSON.stringify(output));
   
   //console.log('output short4: ' + JSON.stringify(output));
   //Note: output the pathname with an anchor around it - still need to implement it!
-  res.send(output);
+  
   });
 });
 
