@@ -47,13 +47,13 @@ app.use(function(req, res){
       if (first3Digits == 'new'){
         console.log('new');
         //Supposed to be a long url
-        //we need to strip it off for the first11Digit validation; 
-        //We need to have 2 dots
-
         //We should get rid of new/ from pathname and then use that pathname for check, insert and output!!!
         pathname = pathname.substring(4, pathname.length);
+        console.log("pathname: " + pathname);
 //NOTE2: since we are doubling up in code, we should split the checks into a checkURL() method that returns true/false and you need to pass in the pathname
-
+//Note3: Due to the assync nature of Express.js if I put db.close at the end it will close before find() or insert() finishes.
+//So I worked around it by putting it into the find/insert callback function. But for this it's a lot of duplicated code. 
+//Maybe should split that into a function as well???
         first11Digits = pathname.substring(0, 11);
         console.log('first11Digits after new: ' + first11Digits);
 
@@ -75,28 +75,28 @@ app.use(function(req, res){
             if (longURLArr.length > 0) {
               console.log('found long url');
               output = {
-              'original url' : longURLArr[0],
-              'short url' : longURLArr[1]
+              'original url' : longURLArr[0]["longURL"],
+              'short url' : shortURLStr + longURLArr[0]["shortURL"]
               };
               console.log('output after finding longURL: ' + JSON.stringify(output));
+              console.log("before closing connection");
+              console.log("output: " + JSON.stringify(output));
+              res.send(output);
+              //Close connection
+              db.close(); 
             }
             else {
               console.log('Long URL is not in the database');
               //create a unique short url and save it to the database. 
               //ShortURL generating logic:
               //Find the biggest (MAX) short url number and add 1 to it
-              if (counter !== 0){
-                  console.log("counter is not zero...");
-                  var maxRecord = collection.find().sort({shortULR:-1}).limit(1).toArray(function(err, documents) {
-                  if (err) throw err
-                  console.log(documents);
-
-                  //Turn counter to str!
-                  counter = parseInt(maxRecord[2]);
-                  counter += 1;
-                  console.log("counter: " + counter);
-                });  
-              }
+              
+              collection.count(function (err, count) {
+                if (!err) {
+                counter = count + 1;
+                console.log("count: " + count + " counter: " + counter);
+                }
+              });
               
               shortURLStrCtr = "" + counter;
               console.log("shortURLStr: " + shortURLStr);
@@ -152,11 +152,6 @@ app.use(function(req, res){
             if (err) throw err;
             console.log("in collection.find shortURL;");
             console.log("documents: " + JSON.stringify(documents));
-            console.log('documents[0]: ' + JSON.stringify(documents[0]));
-            console.log('documents[0]["longURL"]: ' + documents[0]["longURL"]);
-            console.log("documents.length: next log");
-            console.log(documents.length);
-            //shortULRArr = documents;
             if (documents.length > 0){
               //redirect
               console.log('before redirectig');
@@ -173,13 +168,7 @@ app.use(function(req, res){
               //Close connection
               db.close();  
             }
-
-            
-        
           });  
-
-          //output = {'original url' : pathname};
-          //console.log('output short: ' + JSON.stringify(output));
         }
         else{
           console.log("short URL is not in a valid format");
@@ -193,20 +182,7 @@ app.use(function(req, res){
         }
       } 
     }
-//Problem: this will happen before the above code finished running; in other words,
-//it seems to be async and before the lines above finished this will just close db and cause trouble;
-//Need to close in a callback somehow???
-    //console.log("before closing connection");
-    //console.log("output: " + JSON.stringify(output));
-    
-    //res.send(output);
-    //Close connection
-    //db.close();  
-    //console.log('output short3: ' + JSON.stringify(output));
-  
-  //console.log('output short4: ' + JSON.stringify(output));
   //Note: output the pathname with an anchor around it - still need to implement it!
-  
   });
 });
 
