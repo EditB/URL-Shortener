@@ -89,38 +89,54 @@ app.use(function(req, res){
               console.log('Long URL is not in the database');
               //create a unique short url and save it to the database. 
               //ShortURL generating logic:
-              //Find the biggest (MAX) short url number and add 1 to it
               
               collection.count(function (err, count) {
-                if (!err) {
-                counter = count + 1;
-                console.log("count: " + count + " counter: " + counter);
-                }
-              });
-              
-              shortURLStrCtr = "" + counter;
-              console.log("shortURLStr: " + shortURLStr);
-              console.log('before insert');
-              console.log("pathname: " + pathname + " shortURLStr: " + shortURLStr);
-              collection.insert(
-                { 'longURL' : pathname, 'shortURL': shortURLStrCtr}, 
-                function(err, documents) {
-                  console.log(err);
-                  if (err) throw err;
-                  //console.log(JSON.stringify({ longURL : pathname, shortURL: shortURLStr}));
-                  console.log('documents at inserting: ' + JSON.stringify(documents));
-                  console.log('after insert');
-                  output = {
-                    'original URL: ' : pathname,
-                    'short URL' : (shortURLStr + shortURLStrCtr)
-                };
-                console.log('output after insert: ' + JSON.stringify(output));
-                console.log("before closing connection");
-                console.log("output: " + JSON.stringify(output));
-                res.send(output);
-                //Close connection
-                db.close();  
-              });
+                if (err) throw err;
+                console.log('in count; count: ' + count);
+                //Note: if count is zero, counter is already set to zero.
+                //Max will only work if there's at least one record in the db...
+                //if (!err && count!==0) {
+                  if (!err) {
+                  //Find the biggest (MAX) short url number and add 1 to it  
+                  console.log('about to find MAX ShortURL; counter: ' + counter);
+                  collection.find().sort({shortURL:-1}).limit(1).toArray(function(err, documents) {
+                    if (err) throw err;
+                    console.log("documents: " + JSON.stringify(documents));
+                    
+                    if (count > 0){
+                      counter = documents[0]["shortURL"];  
+                    }
+                    
+                  
+                    console.log("count: " + count + " counter: " + counter);
+                    counter += 1;
+                    console.log('new counter: ' + counter);
+                    console.log("shortURLStr: " + shortURLStr);
+                    console.log('before insert');
+                    console.log("pathname: " + pathname + " counter: " + counter);
+                    collection.insert(
+                      { 'longURL' : pathname, 'shortURL': counter}, 
+                      function(err, documents) {
+                      console.log(err);
+                      if (err) throw err;
+                      //console.log(JSON.stringify({ longURL : pathname, shortURL: shortURLStr}));
+                      console.log('documents at inserting: ' + JSON.stringify(documents));
+                      console.log('after insert');
+                      output = {
+                        'original URL: ' : pathname,
+                        'short URL' : (shortURLStr + "" + counter)
+                      };
+                      console.log('output after insert: ' + JSON.stringify(output));
+                      console.log("before closing connection");
+                      console.log("output: " + JSON.stringify(output));
+                      res.send(output);
+                      //Close connection
+                      db.close();  
+                    });
+                  });    
+                } 
+            });
+
             }
             
           });
@@ -140,7 +156,8 @@ app.use(function(req, res){
       else{
         console.log('short URL');
         //Need to strip pathname off https://www.url-shortener-e.glitch.me/
-        shortURLStrCtr = pathname.substring(38, pathname.length);
+        shortURLStrCtr = parseInt(pathname.substring(38, pathname.length));
+
         console.log("shortURLStr: " + shortURLStr);
 
         if (((first11Digits == "http://www.") || (first11Digits == "https://www")) && 
